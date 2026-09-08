@@ -1,2 +1,2 @@
-# thisistheplace-thisistheplace.github.io
+# thisistheplace.github.io
 Sewage discharge on the River Clydach
