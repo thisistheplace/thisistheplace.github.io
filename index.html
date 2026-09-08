@@ -1,4 +1,5 @@
 <title>The Clydach Overflow</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700;8..60,900&family=Source+Serif+4:ital,opsz,wght@1,8..60,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
@@ -362,6 +363,28 @@
       color:var(--ink-faint); white-space:normal;
     }
   }
+  @media (max-width:600px){
+    /* phones: give content more of the narrow width back, and let type and spacing
+       read as a mobile layout rather than a shrunk desktop one */
+    .wrap, .wrap-wide{ padding:0 18px; }
+    .hero{ padding:36px 0 28px; }
+    .hero h1{ font-size:28px; }
+    .hero .lede{ font-size:17px; margin-top:14px; }
+    .stat-row{ margin-top:24px; border-radius:10px; }
+    .stat{ padding:18px 18px; }
+    .stat-value{ font-size:28px; }
+    .photo-band{ margin-top:32px; }
+    section{ padding:44px 0; }
+    .section-head h2{ font-size:24px; }
+    .lede, .body-text{ max-width:none; }
+    .site-grid{ margin-top:24px; }
+    .fact-panel{ padding:18px 18px; }
+    .masthead-inner{ padding:14px 0; gap:10px; }
+    .masthead-id{ font-size:11.5px; line-height:1.5; }
+    .cal-legend{ font-size:11.5px; row-gap:8px; }
+    .rank-list{ gap:6px; }
+    .rank-row{ padding:13px 4px; }
+  }
 </style>
 
 <div id="tt" role="status"></div>
@@ -718,9 +741,16 @@ function hideTT(){ tt.classList.remove('show'); }
 /* ---------- monthly bar charts (discharge hours + rainfall) ---------- */
 function drawMonthlyChart(opts){
   const svg = document.getElementById(opts.svgId);
+  svg.innerHTML = '';
   const m = DATA.monthly;
-  const W = 880, H = opts.height;
-  const padL = 46, padR = 16, padT = 16, padB = opts.subLabel ? 44 : 30;
+  // viewBox width tracks the SVG's actual rendered width (rather than a fixed 880,
+  // scaled down to fit) so text stays real, legible pixels on narrow phones instead
+  // of shrinking proportionally with the chart.
+  const W = Math.round(svg.getBoundingClientRect().width) || 880, H = opts.height;
+  const narrow = W < 480;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  const showSub = opts.subLabel && !narrow;
+  const padL = narrow ? 34 : 46, padR = 10, padT = 16, padB = showSub ? 44 : 30;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const max = Math.max(...m.map(d=>d[opts.valueKey]));
   const niceMax = Math.max(Math.ceil(max/opts.step)*opts.step, opts.step);
@@ -734,12 +764,12 @@ function drawMonthlyChart(opts){
     return e;
   }
 
-  const steps = 5;
+  const steps = narrow ? 3 : 5;
   for(let i=0;i<=steps;i++){
     const val = niceMax * i/steps;
     const y = padT + plotH - (val/niceMax)*plotH;
     svg.appendChild(el('line',{ x1:padL, x2:W-padR, y1:y, y2:y, stroke:'var(--line)', 'stroke-width':1 }));
-    const t = el('text',{ x:padL-10, y:y+4, 'text-anchor':'end', 'font-family':'var(--mono)', 'font-size':11, fill:'var(--ink-faint)' });
+    const t = el('text',{ x:padL-8, y:y+4, 'text-anchor':'end', 'font-family':'var(--mono)', 'font-size':narrow?10:11, fill:'var(--ink-faint)' });
     t.textContent = val.toFixed(0);
     svg.appendChild(t);
   }
@@ -752,25 +782,30 @@ function drawMonthlyChart(opts){
 
     const g = el('g',{ class:'bar-group' });
 
+    // below ~480px the 9 monthly columns get too narrow to carry a value label, a
+    // month label and an events sub-label without colliding, so showSub (set above)
+    // drops the sub-label and these two shrink slightly rather than overlapping.
+    const valSize = narrow ? 11 : 13, labSize = narrow ? 11 : 13;
+
     if(v > 0){
       const rect = el('rect',{ class:'bar-rect', x, y, width:barW, height:Math.max(h,2), rx:4, fill:opts.color });
       g.appendChild(rect);
-      const val = el('text',{ x:x+barW/2, y:y-8, 'text-anchor':'middle', class:'bar-label-val', 'font-size':13, fill:'var(--ink)' });
+      const val = el('text',{ x:x+barW/2, y:y-8, 'text-anchor':'middle', class:'bar-label-val', 'font-size':valSize, fill:'var(--ink)' });
       val.textContent = v.toLocaleString();
       g.appendChild(val);
     } else {
       const rect = el('rect',{ x, y:padT+plotH-2, width:barW, height:2, rx:1, fill:'var(--line-strong)' });
       g.appendChild(rect);
-      const val = el('text',{ x:x+barW/2, y:padT+plotH-10, 'text-anchor':'middle', class:'bar-label-val', 'font-size':13, fill:'var(--ink-faint)' });
+      const val = el('text',{ x:x+barW/2, y:padT+plotH-10, 'text-anchor':'middle', class:'bar-label-val', 'font-size':valSize, fill:'var(--ink-faint)' });
       val.textContent = '0';
       g.appendChild(val);
     }
 
-    const lab = el('text',{ x:x+barW/2, y:H-(opts.subLabel?24:10), 'text-anchor':'middle', 'font-family':'var(--sans)', 'font-size':13, 'font-weight':600, fill:'var(--ink)' });
+    const lab = el('text',{ x:x+barW/2, y:H-(showSub?24:10), 'text-anchor':'middle', 'font-family':'var(--sans)', 'font-size':labSize, 'font-weight':600, fill:'var(--ink)' });
     lab.textContent = d.label;
     g.appendChild(lab);
 
-    if(opts.subLabel){
+    if(showSub){
       const sub = el('text',{ x:x+barW/2, y:H-9, 'text-anchor':'middle', 'font-family':'var(--mono)', 'font-size':10.5, fill:'var(--ink-faint)' });
       sub.textContent = opts.subLabel(d);
       g.appendChild(sub);
@@ -788,15 +823,27 @@ function drawMonthlyChart(opts){
   });
 }
 
-drawMonthlyChart({
+const monthChartOpts = {
   svgId: 'monthChart', valueKey: 'hours', color: 'var(--spill-4)', step: 100, height: 340,
   subLabel: d => d.count + (d.count===1?' event':' events'),
   tooltip: d => d.hours.toLocaleString() + ' hours across ' + d.count + ' ' + (d.count===1?'event':'events')
-});
-drawMonthlyChart({
+};
+const rainChartOpts = {
   svgId: 'rainChart', valueKey: 'rainMm', color: 'var(--rain-3)', step: 50, height: 260,
   subLabel: null,
   tooltip: d => d.rainMm.toLocaleString() + 'mm of rain'
+};
+function renderCharts(){
+  drawMonthlyChart(monthChartOpts);
+  drawMonthlyChart(rainChartOpts);
+}
+renderCharts();
+// re-measure and redraw on resize/rotation so the chart text keeps tracking the
+// SVG's real rendered width rather than staying sized for whatever width it first loaded at
+let chartResizeTimer;
+window.addEventListener('resize', ()=>{
+  clearTimeout(chartResizeTimer);
+  chartResizeTimer = setTimeout(renderCharts, 150);
 });
 
 /* ---------- ranked list ---------- */
